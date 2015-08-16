@@ -1,8 +1,6 @@
-setwd("/Users/yuanchuan/Dropbox/Projects/Coursera/Data Science/Capstone")
+wd = file.path('..', '..')
 
-wd = getwd()
-
-en_US_data_path = file.path(wd, "final", "en_US")
+en_US_data_path = file.path(wd, "data", "final", "en_US")
 files = list.files(en_US_data_path)
 
 q1_ans = file.size(file.path(en_US_data_path, files[1]))/1024^2
