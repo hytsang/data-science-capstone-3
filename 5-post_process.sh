@@ -5,7 +5,7 @@ DATA_DIR=$WORKING_DIR/data
 GRAMS_DIR=$DATA_DIR/grams
 
 ## Post-processing
-## Fina valids grams
+## Find valids grams
 
 # Bigrams
 # Get bigrams that are "valid" from the 3 files and sort it by count
@@ -23,7 +23,7 @@ grep -h "^[a-zA-Z]\+-\?[a-z]* [a-zA-Z]\+-\?[a-z]*|n\?'[a-z]\+|" $GRAMS_DIR/trigr
 awk '{d[$1$2] += $3}END {for (k in d) print k, d[k]}' FS="|" OFS="|" $GRAMS_DIR/bigrams.unaggregated.contractions.sorted.csv | sort -k 2 -t '|' -nr | sed 's/ /|/g' > $GRAMS_DIR/bigrams.aggregated.contractions.sorted.csv
 # Merge the bigrams with contractions together with the main aggregated bigrams and sort it by count
 cat $GRAMS_DIR/bigrams.aggregated.contractions.sorted.csv $GRAMS_DIR/bigrams.aggregated.valid.sorted.csv | sort -k 3 -t '|' -nr > $GRAMS_DIR/bigrams.final.csv
-#
+
 # Trigrams
 # Get trigrams without contractions from the 3 files and find "valid" trigrams and sort it by count
 grep -hv "^[a-zA-Z]\+-\?[a-z]* [a-zA-Z]\+-\?[a-z]*|n\?'[a-z]\+|" $GRAMS_DIR/trigrams-*.csv | grep "^[a-zA-Z]\+-\?[a-z]* [a-zA-Z]\+-\?[a-z]*|[a-zA-Z]\+-\?[a-z]*|[0-9]*" | sort -k 3 -t '|' -nr > $GRAMS_DIR/trigrams.unaggregated.valid.sorted.csv

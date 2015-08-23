@@ -8,6 +8,8 @@ EN_CLEAN_DATA_DIR=$DATA_DIR/cleaned
 if [ ! -d $GRAMS_DIR ]; then
   mkdir -p $GRAMS_DIR
 fi
+# Generate unigrams
+python generate_unigrams.py | grep "^[a-zA-Z][a-zA-Z]\+-\?[a-z]*" | sort -k 2 -t ',' > $GRAMS_DIR/unigrams.csv
 
 # Generate bigrams
 for f in $(ls $EN_CLEAN_DATA_DIR);
