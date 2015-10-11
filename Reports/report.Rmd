@@ -1,0 +1,129 @@
+---
+title: "Coursera Data Science Capstone Milestone Report"
+author: "kylase-coursera"
+date: "25 July 2015"
+output: 
+  html_document: 
+    theme: flatly
+---
+
+# Introduction
+
+The Capstone Project is about building a web application that does predictive text system that will provide a list of possible words based on the previous word(s) entered.
+
+This project requires the concepts of Natural Language Processing (NLP) such as n-gram.
+
+## N-gram
+N-gram is a contiguous sequence of n items from a given sequence of text or speech.
+
+Using the sentence below as an example:
+
+> A quick brown fox jumps over the fence.
+
+The associated 2-grams are: "A quick", "quick brown", "brown fox", "fox jumps", "jumps over", "over the", "the fence".
+By extending this idea, the 3-grams are: "A quick brown", "quick brown fox", "brown fox jumps", "fox jumps over", "jumps over the", "over the fence"
+
+The application that we are building relies extensively on the concept of n-gram as the word that we are trying to predict relies on the word(s) that precede(s) it.  
+
+# Data Source
+
+The data for this project is obtained from Coursera; the original source from [HC Corpora](http://www.corpora.heliohost.org/). 
+
+We are using the files based on English (`en_US`) for this project. 
+
+## Removing profanity
+
+The list of profanity is based on the [Google's What do you love](https://gist.github.com/ryanlewis/a37739d710ccdb4b406d). 
+
+Lines containing any of the words listed will not be analysed subsequently.
+
+## Summary of data
+
+The table below shows some basic statistics on the files that are used in the analysis. Note that lines containing profanities have been removed.
+
+```{r file_statistics, warning=FALSE, echo=FALSE, cache=TRUE}
+setwd("../data/cleaned")
+en_path = file.path("data", "NoProfanity")
+en_files_full = list.files(en_path, full.names = TRUE)
+en_files_short = list.files(en_path)
+lines_count = lapply(en_files_full, function(f) length(readLines(f)) )
+file_sizes = lapply(en_files_full, function(f) file.size(f)/1024/1024 )
+files_stat = rbind(file_sizes, lines_count)
+colnames(files_stat) = en_files_short
+rownames(files_stat) = c("Size (MB)", "Line Count")
+
+files_stat
+```
+
+# Analysis
+
+For our analysis, we present the top unigram frequency, its coverage and the 2-gram and 3-gram frequencies.
+
+## Unigram
+
+### Frequency
+
+```{r unigram_frequency, cache=TRUE, echo=FALSE, warning=FALSE}
+library(ggplot2)
+library(scales)
+unigram_count = read.csv("unigram_count.cleaned.csv", col.names = c("count", "word"), colClasses = c("integer", "character"), sep = ' ')
+ggplot(unigram_count[1:20, ], aes(x = reorder(word, count), y = count)) + geom_bar(stat = "identity") + coord_flip() + xlab("Unigram") + scale_y_continuous("count", labels = comma)
+```
+
+### Coverage
+```{r unigram_coverage, cache=TRUE, echo=FALSE, warning=FALSE}
+unigram_coverage = cumsum(unigram_count$count)/sum(unigram_count$count)
+unigram_indices = 1:length(unigram_coverage)
+pct50_coverage = unigram_indices[which(unigram_coverage > 0.4995 & unigram_coverage < 0.5005)]
+pct90_coverage = unigram_indices[which(unigram_coverage > 0.89999 & unigram_coverage < 0.90001)]
+qplot(unigram_indices, unigram_coverage, geom = "line") + scale_y_continuous("Coverage") + scale_x_log10("Number of unique words (log scale)", label = comma) + geom_vline(xintercept = pct50_coverage[1], colour = "blue") + geom_vline(xintercept = pct90_coverage[1], colour = "red")
+```
+
+From the Frequency and Coverage figures above, it shows that the coverage is 50% at `r round(pct50_coverage[1]/max(unigram_indices)* 100, digits = 2)`% of the unigrams and 90% covered at `r round(pct90_coverage[1]/max(unigram_indices) * 100, digits = 2)`% of the unigrams. This shows that there are many words that appear very often in the corpus, and these words are the stopwords as shown in the Frequency figure. Hence, leading to high coverage with very small percentage of the words in the corpus. With about `r pct90_coverage[1]` words, 90% of the words are being covered. This provides us good knowledge and estimates on how much data we will need to use to build the final model.
+
+## 2-gram and 3-gram Frequencies
+
+```{r plot_grams_frequency, cache=TRUE, echo=FALSE}
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+header = c("word_1", "word_2", "freq")
+col_classes = c("character", "character", "integer")
+
+bigram_df = rbind(
+  tbl_df(read.csv("bigrams.cleaned.valid.sorted.csv", sep = "|", col.names = header, colClasses = col_classes)), 
+  tbl_df(read.csv("bigrams.contracted.sorted.csv", sep = "|", col.names = header, colClasses = col_classes))
+)
+
+bigram_df = summarise(group_by(bigram_df, word_1, word_2), agg_count = sum(freq)) %>%
+  filter(agg_count > 1000) %>%
+  ungroup() %>%
+  arrange(desc(agg_count))
+
+ggplot(bigram_df[1:20, ], aes(x = reorder(paste(word_1, word_2), agg_count), y = agg_count)) + geom_bar(stat = "identity") + coord_flip() + xlab("2-gram") + scale_y_continuous("count", labels = comma)
+
+trigram_df = rbind(
+  tbl_df(read.csv("trigrams-blogs.cleaned.valid.sorted.csv", sep = "|", col.names = header, colClasses = col_classes)),
+  tbl_df(read.csv("trigrams-news.cleaned.valid.sorted.csv", sep = "|", col.names = header, colClasses = col_classes)),
+  tbl_df(read.csv("trigrams-tweets.cleaned.valid.sorted.csv", sep = "|", col.names = header, colClasses = col_classes))
+)
+
+trigram_df = summarise(group_by(trigram_df, word_1, word_2), agg_count = sum(freq)) %>%
+  filter(agg_count > 1000) %>%
+  ungroup() %>%
+  arrange(desc(agg_count))
+
+ggplot(trigram_df[1:20, ], aes(x = reorder(paste(word_1, word_2), agg_count), y = agg_count)) + geom_bar(stat = "identity") + coord_flip() + xlab("3-gram") + scale_y_continuous("count", labels = comma)
+```
+
+From the graphs above, the most common 2-gram and 3-gram can be observed. Stopwords top the charts as expected. However, they cannot be ignored for building a system that predicts the next possible word. Therefore, they are taken into account in the model development. 
+
+# Conclusion
+
+We have done the a good initial data exploratory on the corpus provided. It provides knowledge and understanding on how we can proceed on to develop the model for the final application that is due in 4 weeks' time.
+
+## Plans on building the application
+
+1. Develop an associative relationships between words (without stopwords). A pair of words often appear together in a sentence. This will make the model able to predict the next word based on word(s) that is/are further away (3 or more words preceding the word to  be predicted).
+2. Shrink the size of the model in order to fit into the Shiny app.
